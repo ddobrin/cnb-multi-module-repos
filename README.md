@@ -56,43 +56,108 @@ Before starting to build one of the modules, let's analyze the syntax of the ```
 # builder --> the name of the builder to use, if not set as default (ex. cloudfoundry/cnb:bionic)
 # publish --> indicates whether the image will be published to the repository
 # env variables:
-#   BP_BUILT_MODULE --> the module to build (ex. message-service)
-#   BP_BUILD_ARGUMENTS --> build arguments 
+#   BP_MAVEN_BUILT_MODULE--> the module to build (ex. message-service)
+#   BP_MAVEN_BUILD_ARGUMENTS --> build arguments 
 #       pl --> Comma-delimited list of specified reactor projects to build instead
 #                of all projects. A project can be specified by [groupId]:artifactId
 #                   or by its relative path
 #       am --> If project list is specified, also build projects required by the list
 
-# ex: build message-service
-> pack build triathlonguy/message-service:blue --publish --path . --builder cloudfoundry/cnb:bionic --env BP_BUILT_MODULE=message-service --env BP_BUILD_ARGUMENTS="-Dmaven.test.skip=true package -pl message-service -am"
+# ex: build message-service 
+> pack build triathlonguy/message-service:blue --publish --path . --builder cloudfoundry/cnb:bionic --env BP_MAVEN_BUILT_MODULE=message-service --env BP_MAVEN_BUILD_ARGUMENTS="-Dmaven.test.skip=true package -pl message-service -am"
+
+# with Paketo buildpacks
+> pack build triathlonguy/message-service:blue --publish --path . --builder gcr.io/paketo-buildpacks/builder:base --env BP_MAVEN_BUILT_MODULE=message-service --env BP_MAVEN_BUILD_ARGUMENTS="-Dmaven.test.skip=true package -pl message-service -am"
 
 ex.: build billboard-client
-> pack build triathlonguy/billboard-client:blue --publish --path . --builder cloudfoundry/cnb:bionic --env BP_BUILT_MODULE=billboard-client --env BP_BUILD_ARGUMENTS="-Dmaven.test.skip=true package -pl billboard-client -am"
+> pack build triathlonguy/billboard-client:blue --publish --path . --builder cloudfoundry/cnb:bionic --env BP_MAVEN_BUILT_MODULE=billboard-client --env BP_MAVEN_BUILD_ARGUMENTS="-Dmaven.test.skip=true package -pl billboard-client -am"
+
+# with Paketo buildpacks
+> pack build triathlonguy/billboard-client:blue --publish --path . --builder gcr.io/paketo-buildpacks/builder:base --env BP_MAVEN_BUILT_MODULE=billboard-client --env BP_MAVEN_BUILD_ARGUMENTS="-Dmaven.test.skip=true package -pl billboard-client -am"
 ```
 
 Using the default builder and parameters and running the ```pack``` command from the folder of the module will lead to build errors, as the path can not be resolved for all components
 
 The important aspects to consider here:
-1. BP_BUILT_MODULE sets the module to be built
-2. BP_BUILD_ARGUMENTS sets the Maven build arguments where the sub-module must be specified, to avoid building every module of the repository. It is a perfomance optimization
+1. BP_MAVEN_BUILT_MODULE sets the module to be built
+2. BP_MAVEN_BUILD_ARGUMENTS sets the Maven build arguments where the sub-module must be specified, to avoid building every module of the repository. It is a perfomance optimization
 
-The build process starts with the detection phase:
+The build process starts with the detection, analysis and image restoration from cache phases:
 ```shell
-bionic: Pulling from cloudfoundry/cnb
-Digest: sha256:7ec3b3febc25f5726f730940f0d228e9fde6700a01e8bceb4f2fd26ba49a55dd
-Status: Image is up to date for cloudfoundry/cnb:bionic
 ===> DETECTING
-[detector] 7 of 13 buildpacks participating
+[detector] 6 of 15 buildpacks participating
+[detector] paketo-buildpacks/bellsoft-liberica 2.5.3
+[detector] paketo-buildpacks/maven             1.2.2
+[detector] paketo-buildpacks/executable-jar    1.2.3
+[detector] paketo-buildpacks/apache-tomcat     1.1.3
+[detector] paketo-buildpacks/dist-zip          1.3.0
+[detector] paketo-buildpacks/spring-boot       1.5.3
+===> ANALYZING
+[analyzer] Restoring metadata for "paketo-buildpacks/bellsoft-liberica:jvmkill" from app image
+[analyzer] Restoring metadata for "paketo-buildpacks/bellsoft-liberica:link-local-dns" from app image
+[analyzer] Restoring metadata for "paketo-buildpacks/bellsoft-liberica:memory-calculator" from app image
+[analyzer] Restoring metadata for "paketo-buildpacks/bellsoft-liberica:openssl-security-provider" from app image
+[analyzer] Restoring metadata for "paketo-buildpacks/bellsoft-liberica:security-providers-configurer" from app image
+[analyzer] Restoring metadata for "paketo-buildpacks/bellsoft-liberica:class-counter" from app image
+[analyzer] Restoring metadata for "paketo-buildpacks/bellsoft-liberica:java-security-properties" from app image
+[analyzer] Restoring metadata for "paketo-buildpacks/bellsoft-liberica:jre" from app image
+[analyzer] Restoring metadata for "paketo-buildpacks/bellsoft-liberica:jdk" from cache
+[analyzer] Restoring metadata for "paketo-buildpacks/maven:cache" from cache
+[analyzer] Restoring metadata for "paketo-buildpacks/maven:application" from cache
+[analyzer] Restoring metadata for "paketo-buildpacks/executable-jar:class-path" from app image
+===> RESTORING
+[restorer] Restoring data for "paketo-buildpacks/bellsoft-liberica:jdk" from cache
+[restorer] Restoring data for "paketo-buildpacks/maven:application" from cache
+[restorer] Restoring data for "paketo-buildpacks/maven:cache" from cache
 ...
 ```
 
 ... followed by the code build:
 ```
+[builder] 
+[builder] Paketo BellSoft Liberica Buildpack 2.5.3
+[builder]     Set $BPL_JVM_HEAD_ROOM to configure the headroom in memory calculation. Default 0.
+[builder]     Set $BPL_JVM_LOADED_CLASS_COUNT to configure the number of loaded classes in memory calculation. Default 35% of classes.
+[builder]     Set $BPL_JVM_THREAD_COUNT to configure the number of threads in memory calculation. Default 250.
+[builder]     Set $BP_JVM_VERSION to configure the Java version. Default 11.*.
+[builder]   BellSoft Liberica JDK 11.0.7: Reusing cached layer
+[builder]   BellSoft Liberica JRE 11.0.7: Reusing cached layer
+[builder]   Memory Calculator 4.0.0: Reusing cached layer
+[builder]   Class Counter: Reusing cached layer
+[builder]   JVMKill Agent 1.16.0: Reusing cached layer
+[builder]   Link-Local DNS: Reusing cached layer
+[builder]   Java Security Properties: Reusing cached layer
+[builder]   Security Providers Configurer: Reusing cached layer
+[builder]   OpenSSL Security Provider 1.0.2: Reusing cached layer
+[builder] 
+[builder] Paketo Maven Buildpack 1.2.2
+[builder]     Set $BP_MAVEN_BUILD_ARGUMENTS to configure the arguments to pass to Maven. Default -Dmaven.test.skip=true package.
+[builder]     Set $BP_MAVEN_BUILT_ARTIFACT to configure the built application artifact explicitly.  Supersedes $BP_MAVEN_BUILT_MODULE. Default target/*.[jw]ar.
+[builder]     Set $BP_MAVEN_BUILT_MODULE to configure the module to find application artifact in
+[builder]     Set $BP_MAVEN_SETTINGS to configure  the contents of a `settings.xml` file to be used at build time
+[builder]     Creating cache directory /home/cnb/.m2
+[builder]   Compiled Application: Reusing cached layer
+[builder]   Removing source code
+[builder] 
+[builder] Paketo Executable JAR Buildpack 1.2.3
+[builder]   Process types:
+[builder]     executable-jar: java -cp "${CLASSPATH}" ${JAVA_OPTS} org.springframework.boot.loader.JarLauncher
+[builder]     task:           java -cp "${CLASSPATH}" ${JAVA_OPTS} org.springframework.boot.loader.JarLauncher
+[builder]     web:            java -cp "${CLASSPATH}" ${JAVA_OPTS} org.springframework.boot.loader.JarLauncher
+[builder] 
+[builder] Paketo Spring Boot Buildpack 1.5.3
+[builder]   Image labels:
+[builder]     org.opencontainers.image.title
+[builder]     org.opencontainers.image.version
+[builder]     org.springframework.boot.spring-configuration-metadata.json
+[builder]     org.springframework.boot.version
+
+...
 [INFO] ------------------------------------------------------------------------
 [builder] [INFO] Reactor Summary for spring-cloud-k8s 1.0.0:
 [builder] [INFO]
 [builder] [INFO] parent............................................. SUCCESS [  0.013 s]
-[builder] [INFO] message-service ................................... SUCCESS [  3.653 s]
+[builder] [INFO] billboard-client................................... SUCCESS [  3.653 s]
 [builder] [INFO] ------------------------------------------------------------------------
 [builder] [INFO] BUILD SUCCESS
 [builder] [INFO] ------------------------------------------------------------------------
@@ -104,15 +169,25 @@ Status: Image is up to date for cloudfoundry/cnb:bionic
 ... and results in the building of the image:
 
 ```
+===> EXPORTING
+[exporter] Reusing layer 'launcher'
+[exporter] Reusing layer 'paketo-buildpacks/bellsoft-liberica:class-counter'
+[exporter] Reusing layer 'paketo-buildpacks/bellsoft-liberica:java-security-properties'
+[exporter] Reusing layer 'paketo-buildpacks/bellsoft-liberica:jre'
+[exporter] Reusing layer 'paketo-buildpacks/bellsoft-liberica:jvmkill'
+[exporter] Reusing layer 'paketo-buildpacks/bellsoft-liberica:link-local-dns'
+[exporter] Reusing layer 'paketo-buildpacks/bellsoft-liberica:memory-calculator'
+[exporter] Reusing layer 'paketo-buildpacks/bellsoft-liberica:openssl-security-provider'
+[exporter] Reusing layer 'paketo-buildpacks/bellsoft-liberica:security-providers-configurer'
+[exporter] Reusing layer 'paketo-buildpacks/executable-jar:class-path'
+[exporter] Reusing 1/1 app layer(s)
 [exporter] Adding layer 'config'
-[exporter] *** Images (sha256:18dd8b18ede78bfa0b4404919b7d570d31b2878da7606628e78062996b9c5362)
-[exporter]       index.docker.io/triathlonguy/message-service:blue
-[exporter] Adding cache layer 'org.cloudfoundry.openjdk:openjdk-jdk
-[exporter] Adding cache layer 'org.cloudfoundry.buildsystem:build-system-application'
-[exporter] Adding cache layer 'org.cloudfoundry.buildsystem:build-system-cache'
-[exporter] Adding cache layer 'org.cloudfoundry.jvmapplication:executable-jar
-[exporter] Adding cache layer 'org.cloudfoundry.springboot:spring-boot'
-Successfully built image triathlonguy/message-service:blue
+[exporter] *** Images (2aa64a98a973):
+[exporter]       index.docker.io/triathlonguy/billboard-client:blue
+[exporter] Reusing cache layer 'paketo-buildpacks/bellsoft-liberica:jdk'
+[exporter] Reusing cache layer 'paketo-buildpacks/maven:application'
+[exporter] Reusing cache layer 'paketo-buildpacks/maven:cache'
+Successfully built image triathlonguy/billboard-client:blue
 ```
 
 ... with the image being published in the repository:
@@ -135,8 +210,8 @@ Deploy kpack using kubectl:
 ```shell
 > kubectl apply -f release-<version>.yaml
 
-# ex.: release.-0.0.7.yaml 
-# https://github.com/pivotal/kpack/releases/download/v0.0.7/release-0.0.7.yaml
+# ex.: release.-0.0.8.yaml 
+# https://github.com/pivotal/kpack/releases/download/v0.0.8/release-0.0.8.yaml
 
 # Validate that kpack is running
 > kubectl -n kpack get pods
